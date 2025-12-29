@@ -27,3 +27,8 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TenantAdminCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str

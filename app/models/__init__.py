@@ -5,3 +5,6 @@ from app.models.role import Role  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.product import Product  # noqa: F401
 from app.models.inventory_movement import InventoryMovement  # noqa: F401
+from app.models.sale import Sale  # noqa: F401
+from app.models.sale_item import SaleItem  # noqa: F401
+

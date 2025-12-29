@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, status
 from app.models.user import User
 from app.models.role import Role
 
+
 bearer_scheme = HTTPBearer(auto_error=False)
 
 def get_current_user(
@@ -64,3 +65,22 @@ def require_roles(allowed_roles: List[str]):
         return current_user
 
     return checker
+
+def require_super_admin(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    role_name = db.execute(
+        select(Role.name).where(
+            Role.id == current_user.role_id,
+            Role.tenant_id == current_user.tenant_id,
+        )
+    ).scalar_one_or_none()
+
+    if role_name != "SUPER_ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="SUPER_ADMIN privileges required",
+        )
+
+    return current_user
