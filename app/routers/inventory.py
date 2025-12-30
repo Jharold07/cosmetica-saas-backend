@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -8,7 +8,8 @@ from app.models.inventory_movement import InventoryMovement
 from app.models.product import Product
 from app.models.store import Store
 from app.models.user import User
-from app.schemas.inventory import MovementCreate, MovementResponse, StockResponse
+from app.core.dependencies import get_current_user
+from app.schemas.inventory import MovementCreate, MovementResponse, StockResponse, ProductStockResponse
 from app.services.stock import get_stock
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
@@ -71,29 +72,57 @@ def create_movement(
     return movement
 
 
-@router.get("/stock", response_model=StockResponse)
-def stock_by_product(
-    store_id: int,
-    product_id: int,
+@router.get("/stock", response_model=list[ProductStockResponse])
+
+def get_stock(
+    store_id: int = Query(...),
+    product_id: int | None = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["ADMIN", "ALMACEN", "VENDEDOR"])),
+    current_user: User = Depends(get_current_user),
 ):
-    # validar store y product dentro del tenant
-    store = db.execute(
-        select(Store.id).where(Store.id == store_id, Store.tenant_id == current_user.tenant_id)
-    ).scalar_one_or_none()
-    if not store:
-        raise HTTPException(status_code=400, detail="Invalid store_id")
+    # Base query
+    stock_expr = func.coalesce(
+        func.sum(InventoryMovement.quantity * InventoryMovement.direction),
+        0
+    ).label("stock")
 
-    product = db.execute(
-        select(Product.id).where(Product.id == product_id, Product.tenant_id == current_user.tenant_id)
-    ).scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=400, detail="Invalid product_id")
+    query = (
+        select(
+            Product.id,
+            Product.name,
+            Product.barcode,
+            Product.category,
+            Product.price,
+            stock_expr,
+        )
+        .outerjoin(
+            InventoryMovement,
+            (InventoryMovement.product_id == Product.id)
+            & (InventoryMovement.store_id == store_id)
+            & (InventoryMovement.tenant_id == current_user.tenant_id),
+        )
+        .where(Product.tenant_id == current_user.tenant_id)
+        .group_by(Product.id)
+    )
 
-    stock = get_stock(db, current_user.tenant_id, store_id, product_id)
-    return {"store_id": store_id, "product_id": product_id, "stock": stock}
+    # Si viene product_id → filtramos
+    if product_id:
+        query = query.where(Product.id == product_id)
 
+    results = db.execute(query).all()
+
+    return [
+        ProductStockResponse(
+            product_id=row.id,
+            name=row.name,
+            barcode=row.barcode,
+            category=row.category,
+            price=float(row.price),
+            stock=int(row.stock),
+        )
+        for row in results
+    ]
+    
 @router.get("/stock/by-barcode", response_model=StockResponse)
 def stock_by_barcode(
     store_id: int,

@@ -29,3 +29,11 @@ class StockResponse(BaseModel):
     store_id: int
     product_id: int
     stock: int
+
+class ProductStockResponse(BaseModel):
+    product_id: int
+    name: str
+    barcode: str
+    category: str
+    price: float
+    stock: int
