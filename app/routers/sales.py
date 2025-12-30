@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
+from datetime import datetime
+
 
 from app.core.database import get_db
 from app.core.dependencies import require_roles
@@ -10,7 +12,7 @@ from app.models.sale import Sale
 from app.models.sale_item import SaleItem
 from app.models.store import Store
 from app.models.user import User
-from app.schemas.sales import SaleCreate, SaleResponse
+from app.schemas.sales import SaleCreate, SaleResponse, SaleListItem
 from app.services.stock import get_stock
 from app.services.sales_number import generate_sale_number
 
@@ -104,6 +106,58 @@ def create_sale(
             created_by=current_user.id,
         )
         db.add(mv)
+
+@router.get("", response_model=list[SaleListItem])
+def list_sales(
+    store_id: int = Query(...),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+    payment_method: str | None = Query(None),
+    number: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["ADMIN", "VENDEDOR"])),
+):
+    q = (
+        select(Sale)
+        .where(
+            Sale.tenant_id == current_user.tenant_id,
+            Sale.store_id == store_id,
+        )
+    )
+
+    if payment_method:
+        q = q.where(Sale.payment_method == payment_method)
+
+    if number:
+        q = q.where(Sale.number.ilike(f"%{number}%"))
+
+    if date_from:
+        q = q.where(Sale.created_at >= date_from)
+
+    if date_to:
+        q = q.where(Sale.created_at <= date_to)
+
+    q = q.order_by(desc(Sale.created_at)).limit(limit).offset(offset)
+
+    return db.execute(q).scalars().all()
+
+@router.get("/{sale_id}", response_model=SaleResponse)
+def get_sale(
+    sale_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["ADMIN", "VENDEDOR"])),
+):
+    sale = db.execute(
+        select(Sale)
+        .where(Sale.id == sale_id, Sale.tenant_id == current_user.tenant_id)
+    ).scalar_one_or_none()
+
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+
+    return sale
 
     db.commit()
     db.refresh(sale)

@@ -77,10 +77,17 @@ def create_movement(
 def get_stock(
     store_id: int = Query(...),
     product_id: int | None = Query(None),
+    search: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     # Base query
+    if search:
+        s = f"%{search.strip()}%"
+        query = query.where(
+            (Product.name.ilike(s)) | (Product.barcode.ilike(s))
+        )
+        
     stock_expr = func.coalesce(
         func.sum(InventoryMovement.quantity * InventoryMovement.direction),
         0

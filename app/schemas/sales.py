@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, Literal
+from datetime import datetime
 
 
 class SaleItemCreate(BaseModel):
@@ -32,6 +33,18 @@ class SaleResponse(BaseModel):
     yape_operation_number: Optional[str]
     total: float
     items: list[SaleItemResponse]
+
+    class Config:
+        from_attributes = True
+
+class SaleListItem(BaseModel):
+    id: int
+    number: str
+    store_id: int
+    payment_method: str
+    yape_operation_number: Optional[str]
+    total: float
+    created_at: datetime
 
     class Config:
         from_attributes = True
