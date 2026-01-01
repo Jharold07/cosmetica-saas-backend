@@ -31,7 +31,7 @@ def create_movement(
     if not store:
         raise HTTPException(status_code=400, detail="Invalid store_id")
 
-    # validar product pertenece al tenant
+    # validar product pertenece a la empresa
     product = db.execute(
         select(Product).where(Product.id == payload.product_id, Product.tenant_id == current_user.tenant_id)
     ).scalar_one_or_none()

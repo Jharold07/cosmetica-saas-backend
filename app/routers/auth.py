@@ -11,7 +11,7 @@ from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-
+# LOGIN endpoint
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.execute(
@@ -39,7 +39,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
 
     return {"access_token": token}
-
+# ME endpoint
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)):
     return {

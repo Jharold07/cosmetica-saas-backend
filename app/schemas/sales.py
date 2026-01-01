@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, Literal
 from datetime import datetime
+from pydantic import Field
 
 
 class SaleItemCreate(BaseModel):
@@ -24,6 +25,8 @@ class SaleItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class SaleVoidRequest(BaseModel):
+    reason: str = Field(..., min_length=3, max_length=255)
 
 class SaleResponse(BaseModel):
     id: int

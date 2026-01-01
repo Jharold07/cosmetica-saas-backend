@@ -11,6 +11,7 @@ from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
+# CREATE product (ADMIN, ALMACEN)
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(
@@ -37,6 +38,7 @@ def create_product(
     db.refresh(product)
     return product
 
+# LIST products (ADMIN, ALMACEN, VENDEDOR)
 
 @router.get("", response_model=list[ProductResponse])
 def list_products(
@@ -53,6 +55,7 @@ def list_products(
     products = db.execute(stmt.order_by(Product.id.desc())).scalars().all()
     return products
 
+# GET product by barcode (ADMIN, ALMACEN, VENDEDOR)
 
 @router.get("/by-barcode/{barcode}", response_model=ProductResponse)
 def get_by_barcode(
@@ -73,6 +76,7 @@ def get_by_barcode(
 
     return product
 
+# UPDATE product (ADMIN, ALMACEN)
 
 @router.patch("/{product_id}", response_model=ProductResponse)
 def update_product(

@@ -30,6 +30,7 @@ def _validate_store(db: Session, tenant_id: int, store_id: int) -> Store:
         raise HTTPException(status_code=400, detail="Invalid store_id")
     return store
 
+# CREATE user (ADMIN)
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
@@ -69,6 +70,7 @@ def create_user(
     db.refresh(user)
     return user
 
+# LIST users (ADMIN)
 
 @router.get("", response_model=list[UserResponse])
 def list_users(

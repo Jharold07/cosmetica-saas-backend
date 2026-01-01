@@ -11,7 +11,7 @@ from app.schemas.store import StoreCreate, StoreUpdate, StoreResponse
 router = APIRouter(prefix="/stores", tags=["Stores"])
 
 
-# CREATE store (ADMIN)
+# CREATE tienda (ADMIN)
 @router.post("", response_model=StoreResponse, status_code=status.HTTP_201_CREATED)
 def create_store(
     payload: StoreCreate,
@@ -30,7 +30,7 @@ def create_store(
     return store
 
 
-# LIST stores by tenant (ADMIN)
+# LIST tiernda por empresa  (ADMIN)
 @router.get("", response_model=list[StoreResponse])
 def list_stores(
     db: Session = Depends(get_db),

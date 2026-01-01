@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.sales import SaleCreate, SaleResponse, SaleListItem
 from app.services.stock import get_stock
 from app.services.sales_number import generate_sale_number
+from app.schemas.sales import SaleVoidRequest
 
 router = APIRouter(prefix="/sales", tags=["Sales"])
 
@@ -106,6 +107,10 @@ def create_sale(
             created_by=current_user.id,
         )
         db.add(mv)
+    db.commit()
+    db.refresh(sale)
+
+    return sale
 
 @router.get("", response_model=list[SaleListItem])
 def list_sales(
@@ -159,6 +164,61 @@ def get_sale(
 
     return sale
 
+
+
+@router.post("/{sale_id}/void", status_code=200)
+def void_sale(
+    sale_id: int,
+    payload: SaleVoidRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["ADMIN"])),
+):
+    # 1) Buscar venta del tenant
+    sale = db.execute(
+        select(Sale).where(
+            Sale.id == sale_id,
+            Sale.tenant_id == current_user.tenant_id
+        )
+    ).scalar_one_or_none()
+
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+
+    if sale.is_voided:
+        raise HTTPException(status_code=409, detail="Sale already voided")
+
+    reason = payload.reason.strip()
+
+    # 2) Obtener items
+    items = db.execute(
+        select(SaleItem).where(SaleItem.sale_id == sale.id)
+    ).scalars().all()
+
+    if not items:
+        raise HTTPException(status_code=400, detail="Sale has no items")
+
+    # 3) Marcar venta como anulada
+    sale.is_voided = True
+
+    # 4) Revertir kardex
+    for item in items:
+        db.add(
+            InventoryMovement(
+                tenant_id=current_user.tenant_id,
+                store_id=sale.store_id,
+                product_id=item.product_id,
+                movement_type="ADJ",
+                quantity=item.quantity,
+                direction=+1,
+                note=f"VOID {sale.number}: {reason}",
+                created_by=current_user.id,
+            )
+        )
+
     db.commit()
-    db.refresh(sale)
-    return sale
+
+    return {
+        "status": "ok",
+        "message": f"Sale {sale.number} voided successfully"
+    }
+

@@ -14,7 +14,7 @@ from app.core.security import hash_password
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
 
-
+# CREATE tenant (SUPER_ADMIN)
 @router.post("", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
 def create_tenant(
     payload: TenantCreate,
@@ -35,6 +35,7 @@ def create_tenant(
     db.refresh(tenant)
     return tenant
 
+# CREATE tenant admin user (SUPER_ADMIN)
 @router.post("/{tenant_id}/admins", status_code=status.HTTP_201_CREATED)
 def create_tenant_admin(
     tenant_id: int,
